@@ -1,4 +1,5 @@
 import type { AxiosProgressEvent, AxiosResponse, GenericAbortSignal, ResponseType } from 'axios'
+import request from './axios'
 export interface HttpOption {
   url: string
   data?: any
@@ -37,9 +38,11 @@ function http<T = any>(
   method = method || 'GET'
 
   const params = Object.assign(typeof data === 'function' ? data() : data ?? {}, {})
+  if (method === 'GET')
+    return request.get(url, { params, signal, onDownloadProgress, responseType }).then(successHandler, failHandler)
 
   // return method === 'GET'
-  //   ? request.get(url, { params, signal, onDownloadProgress, responseType }).then(successHandler, failHandler)
+  //   ?
   //   : request.post(url, params, { headers, signal, onDownloadProgress, responseType }).then(successHandler, failHandler)
   if (method === 'POST') {
     fetch(import.meta.env.VITE_GLOB_API_URL + url, {
@@ -49,6 +52,7 @@ function http<T = any>(
         'Accept': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
+        ...headers,
       },
       body: JSON.stringify({
         max_tokens: 100,
@@ -65,8 +69,8 @@ function http<T = any>(
             ({ value, done }) => {
               if (!done) {
                 const data = new TextDecoder().decode(value)
-                // eslint-disable-next-line no-console
-                console.log(data)
+
+                // console.log(data)
                 onDownloadProgress?.({
                   event: { target: { responseText: data } },
                   loaded: 0,
@@ -81,15 +85,13 @@ function http<T = any>(
             },
 
           ).catch((error) => {
-            console.error(error)
-            return Promise.reject(new Error('error'))
+            return Promise.reject(error)
           })
         }
       }
       return readStream()
     }).catch((error) => {
-      console.error(error)
-      return Promise.reject(new Error('error'))
+      return Promise.reject(error)
     })
   }
   return Promise.resolve({ data: '' } as Response<T>)

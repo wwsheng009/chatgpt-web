@@ -116,6 +116,8 @@ export const useChatStore = defineStore('chat-store', {
     updateChatByUuid(uuid: number, index: number, chat: Chat.Chat) {
       if (!uuid || uuid === 0) {
         if (this.chat.length) {
+          const oldtext = this.chat[0].data[index].text
+          chat.text = oldtext + chat.text
           this.chat[0].data[index] = chat
           this.recordState()
         }
