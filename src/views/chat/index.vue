@@ -21,7 +21,7 @@ const chatStore = useChatStore()
 
 useCopyCode()
 const { isMobile } = useBasicLayout()
-const { addChat, updateChat, updateChatSome, getChatByUuidAndIndex } = useChat()
+const { addChat, updateChat, updateChatSome, getChatByUuidAndIndex, initChat } = useChat()
 const { scrollRef, scrollToBottom } = useScroll()
 
 const { uuid } = route.params as { uuid: string }
@@ -91,13 +91,9 @@ async function onConversation() {
       onDownloadProgress: ({ event }) => {
         const xhr = event.target
         const { responseText } = xhr
-        // Always process the final line
-        const lastIndex = responseText.lastIndexOf('\n')
-        let chunk = responseText
-        if (lastIndex !== -1)
-          chunk = responseText.substring(lastIndex)
+        const chunk = responseText
         try {
-          const data = JSON.parse(chunk)
+          const data = { text: chunk, conversationId: '', id: '' }
           updateChat(
             +uuid,
             dataSources.value.length - 1,
@@ -186,7 +182,7 @@ async function onRegenerate(index: number) {
 
   loading.value = true
 
-  updateChat(
+  initChat(
     +uuid,
     index,
     {
@@ -208,13 +204,10 @@ async function onRegenerate(index: number) {
       onDownloadProgress: ({ event }) => {
         const xhr = event.target
         const { responseText } = xhr
-        // Always process the final line
-        const lastIndex = responseText.lastIndexOf('\n')
-        let chunk = responseText
-        if (lastIndex !== -1)
-          chunk = responseText.substring(lastIndex)
+        const chunk = responseText
         try {
-          const data = JSON.parse(chunk)
+          // const dataarray = JSON.parse(chunk)
+          const data = { text: chunk, conversationId: '', id: '' }
           updateChat(
             +uuid,
             index,

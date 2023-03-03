@@ -14,6 +14,9 @@ export function useChat() {
   const updateChat = (uuid: number, index: number, chat: Chat.Chat) => {
     chatStore.updateChatByUuid(uuid, index, chat)
   }
+  const initChat = (uuid: number, index: number, chat: Chat.Chat) => {
+    chatStore.initChatByUuid(uuid, index, chat)
+  }
 
   const updateChatSome = (uuid: number, index: number, chat: Partial<Chat.Chat>) => {
     chatStore.updateChatSomeByUuid(uuid, index, chat)
@@ -22,6 +25,7 @@ export function useChat() {
   return {
     addChat,
     updateChat,
+    initChat,
     updateChatSome,
     getChatByUuidAndIndex,
   }
