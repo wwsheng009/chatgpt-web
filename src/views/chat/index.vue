@@ -82,7 +82,8 @@ async function onConversation() {
     },
   )
   scrollToBottom()
-
+  let conversationId = ''
+  let firstline = true
   try {
     await fetchChatAPIProcess<Chat.ConversationResponse>({
       prompt: message,
@@ -91,9 +92,20 @@ async function onConversation() {
       onDownloadProgress: ({ event }) => {
         const xhr = event.target
         const { responseText } = xhr
-        const chunk = responseText
+        let chunk = responseText
+        if (firstline) {
+          const lastIndex = responseText.lastIndexOf('\n')
+          if (lastIndex !== -1) {
+            const chunk1 = responseText.substring(0, lastIndex)
+            const data = JSON.parse(chunk1)
+            conversationId = data.conversationId
+            firstline = false
+            chunk = responseText.substring(lastIndex + 1)
+          }
+        }
+
         try {
-          const data = { text: chunk, conversationId: '', id: '' }
+          const data = { text: chunk, conversationId, id: '' }
           updateChat(
             +uuid,
             dataSources.value.length - 1,
@@ -195,7 +207,8 @@ async function onRegenerate(index: number) {
       requestOptions: { prompt: message, ...options },
     },
   )
-
+  let conversationId = ''
+  let firstline = true
   try {
     await fetchChatAPIProcess<Chat.ConversationResponse>({
       prompt: message,
@@ -204,10 +217,20 @@ async function onRegenerate(index: number) {
       onDownloadProgress: ({ event }) => {
         const xhr = event.target
         const { responseText } = xhr
-        const chunk = responseText
+        let chunk = responseText
+        if (firstline) {
+          const lastIndex = responseText.lastIndexOf('\n')
+          if (lastIndex !== -1) {
+            const chunk1 = responseText.substring(0, lastIndex)
+            const data = JSON.parse(chunk1)
+            conversationId = data.conversationId
+            firstline = false
+            chunk = responseText.substring(lastIndex + 1)
+          }
+        }
         try {
           // const dataarray = JSON.parse(chunk)
-          const data = { text: chunk, conversationId: '', id: '' }
+          const data = { text: chunk, conversationId, id: '' }
           updateChat(
             +uuid,
             index,

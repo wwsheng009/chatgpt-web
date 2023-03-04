@@ -55,9 +55,6 @@ function http<T = any>(
         ...headers,
       },
       body: JSON.stringify({
-        max_tokens: 100,
-        temperature: 0.5,
-        n: 1,
         stream: true,
         ...data,
       }),
