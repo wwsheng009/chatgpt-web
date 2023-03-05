@@ -40,11 +40,15 @@ function http<T = any>(
   const params = Object.assign(typeof data === 'function' ? data() : data ?? {}, {})
   if (method === 'GET')
     return request.get(url, { params, signal, onDownloadProgress, responseType }).then(successHandler, failHandler)
+  // else
+  //   return request.post(url, params, { headers, signal, onDownloadProgress, responseType }).then(successHandler, failHandler)
 
   // return method === 'GET'
   //   ?
   //   : request.post(url, params, { headers, signal, onDownloadProgress, responseType }).then(successHandler, failHandler)
-  if (method === 'POST') {
+  // if (method === 'POST') {
+  const p = new Promise<Response<T>>((resolve, reject) => {
+    // return new Promise((resolve, reject) => {
     fetch(import.meta.env.VITE_GLOB_API_URL + url, {
       method: 'POST',
       headers: {
@@ -78,20 +82,22 @@ function http<T = any>(
               else {
               // eslint-disable-next-line no-console
                 console.trace('done')
+                resolve({ data: { data: '' }, message: '', status: 200 } as unknown as Response<T>)
               }
             },
 
           ).catch((error) => {
-            return Promise.reject(error)
+            reject(error)
           })
         }
       }
       return readStream()
     }).catch((error) => {
-      return Promise.reject(error)
+      reject(error)
     })
-  }
-  return Promise.resolve({ data: '' } as Response<T>)
+  })
+  return p
+  // return Promise.resolve({ data: '' } as Response<T>)
 }
 
 export function get<T = any>(
