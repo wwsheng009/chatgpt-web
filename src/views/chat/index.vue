@@ -83,6 +83,7 @@ async function onConversation() {
   )
   scrollToBottom()
 
+  let conversationId = ''
   try {
     await fetchChatAPIProcess<Chat.ConversationResponse>({
       prompt: message,
@@ -92,12 +93,20 @@ async function onConversation() {
         const xhr = event.target
         const { responseText } = xhr
         // Always process the final line
-        const lastIndex = responseText.lastIndexOf('\n')
+        // first line contain the conversation id
+        const lastIndex = responseText.indexOf('\n')
         let chunk = responseText
-        if (lastIndex !== -1)
-          chunk = responseText.substring(lastIndex)
+        if (lastIndex !== -1) {
+          if (conversationId === '') {
+            const chunk1 = responseText.substring(0, lastIndex)
+            const headline = JSON.parse(chunk1)
+            conversationId = headline.conversationId
+          }
+          chunk = responseText.substring(lastIndex + 1)
+        }
+
         try {
-          const data = JSON.parse(chunk)
+          const data = { text: chunk, conversationId, id: '' }// JSON.parse(chunk)
           updateChat(
             +uuid,
             dataSources.value.length - 1,
@@ -118,6 +127,7 @@ async function onConversation() {
         }
       },
     })
+    conversationId = ''
   }
   catch (error: any) {
     const errorMessage = error?.message ?? t('common.wrong')
@@ -199,6 +209,7 @@ async function onRegenerate(index: number) {
       requestOptions: { prompt: message, ...options },
     },
   )
+  let conversationId = ''
 
   try {
     await fetchChatAPIProcess<Chat.ConversationResponse>({
@@ -209,12 +220,19 @@ async function onRegenerate(index: number) {
         const xhr = event.target
         const { responseText } = xhr
         // Always process the final line
-        const lastIndex = responseText.lastIndexOf('\n')
+        // first line contain the conversation id
+        const lastIndex = responseText.indexOf('\n')
         let chunk = responseText
-        if (lastIndex !== -1)
-          chunk = responseText.substring(lastIndex)
+        if (lastIndex !== -1) {
+          if (conversationId === '') {
+            const chunk1 = responseText.substring(0, lastIndex)
+            const headline = JSON.parse(chunk1)
+            conversationId = headline.conversationId
+          }
+          chunk = responseText.substring(lastIndex + 1)
+        }
         try {
-          const data = JSON.parse(chunk)
+          const data = { text: chunk, conversationId, id: '' }// JSON.parse(chunk)
           updateChat(
             +uuid,
             index,
@@ -234,6 +252,7 @@ async function onRegenerate(index: number) {
         }
       },
     })
+    conversationId = ''
   }
   catch (error: any) {
     if (error.message === 'canceled') {
