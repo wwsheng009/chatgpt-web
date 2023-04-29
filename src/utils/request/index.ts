@@ -1,5 +1,7 @@
 import type { AxiosProgressEvent, AxiosResponse, GenericAbortSignal, ResponseType } from 'axios'
 import request from './axios'
+import { useAuthStore } from '@/store'
+
 export interface HttpOption {
   url: string
   data?: any
@@ -19,11 +21,51 @@ export interface Response<T = any> {
 }
 
 function http<T = any>(
+  { url, data, method, headers, onDownloadProgress, signal, beforeRequest, afterRequest }: HttpOption,
+) {
+  const successHandler = (res: AxiosResponse<Response<T>>) => {
+    const authStore = useAuthStore()
+
+    if (res.data.status === 'Success' || typeof res.data === 'string')
+      return res.data
+
+    if (res.data.status === 'Unauthorized') {
+      authStore.removeToken()
+      window.location.reload()
+    }
+
+    return Promise.reject(res.data)
+  }
+
+  const failHandler = (error: Response<Error>) => {
+    afterRequest?.()
+    throw new Error(error?.message || 'Error')
+  }
+
+  beforeRequest?.()
+
+  method = method || 'GET'
+
+  const params = Object.assign(typeof data === 'function' ? data() : data ?? {}, {})
+
+  return method === 'GET'
+    ? request.get(url, { params, signal, onDownloadProgress }).then(successHandler, failHandler)
+    : request.post(url, params, { headers, signal, onDownloadProgress }).then(successHandler, failHandler)
+}
+
+function Stream<T = any>(
   { url, data, method, headers, onDownloadProgress, signal, beforeRequest, afterRequest, responseType }: HttpOption,
 ) {
   const successHandler = (res: AxiosResponse<Response<T>>) => {
+    const authStore = useAuthStore()
+
     if (res.data.status === 'Success' || typeof res.data === 'string')
       return res.data
+
+    if (res.data.status === 'Unauthorized') {
+      authStore.removeToken()
+      window.location.reload()
+    }
 
     return Promise.reject(res.data)
   }
@@ -47,8 +89,17 @@ function http<T = any>(
   //   ?
   //   : request.post(url, params, { headers, signal, onDownloadProgress, responseType }).then(successHandler, failHandler)
   // if (method === 'POST') {
+  if (method !== 'POST')
+    throw new Error('request not support')
+
   const p = new Promise<Response<T>>((resolve, reject) => {
     // return new Promise((resolve, reject) => {
+
+    headers = headers || {}
+    const token = useAuthStore().token
+    if (token)
+      headers.Authorization = `Bearer ${token}`
+
     fetch(import.meta.env.VITE_GLOB_API_URL + url, {
       method: 'POST',
       headers: {
@@ -70,8 +121,6 @@ function http<T = any>(
             ({ value, done }) => {
               if (!done) {
                 const data = new TextDecoder().decode(value)
-
-                // console.log(data)
                 onDownloadProgress?.({
                   event: { target: { responseText: data } },
                   loaded: 0,
@@ -80,12 +129,9 @@ function http<T = any>(
                 return readStream()
               }
               else {
-              // eslint-disable-next-line no-console
-                console.trace('done')
                 resolve({ data: { data: '' }, message: '', status: 200 } as unknown as Response<T>)
               }
             },
-
           ).catch((error) => {
             reject(error)
           })
@@ -97,7 +143,6 @@ function http<T = any>(
     })
   })
   return p
-  // return Promise.resolve({ data: '' } as Response<T>)
 }
 
 export function get<T = any>(
@@ -119,6 +164,22 @@ export function post<T = any>(
   { url, data, method = 'POST', headers, onDownloadProgress, signal, beforeRequest, afterRequest, responseType }: HttpOption,
 ): Promise<Response<T>> {
   return http<T>({
+    url,
+    method,
+    data,
+    headers,
+    onDownloadProgress,
+    signal,
+    beforeRequest,
+    afterRequest,
+    responseType,
+  })
+}
+
+export function stream<T = any>(
+  { url, data, method = 'POST', headers, onDownloadProgress, signal, beforeRequest, afterRequest, responseType }: HttpOption,
+): Promise<Response<T>> {
+  return Stream<T>({
     url,
     method,
     data,
