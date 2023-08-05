@@ -27,7 +27,7 @@ const ms = useMessage()
 const chatStore = useChatStore()
 
 const { isMobile } = useBasicLayout()
-const { addChat, updateChat, updateChatSome, getChatByUuidAndIndex } = useChat()
+const { addChat, updateChat, initChat, updateChatSome, getChatByUuidAndIndex } = useChat()
 const { scrollRef, scrollToBottom, scrollToBottomIfAtBottom } = useScroll()
 const { usingContext, toggleUsingContext } = useUsingContext()
 
@@ -218,11 +218,12 @@ async function onRegenerate(index: number) {
   let options: Chat.ConversationRequest = {}
 
   if (requestOptions.options)
-    options = { ...requestOptions.options }
+    updateChat
+  options = { ...requestOptions.options }
 
   loading.value = true
 
-  updateChat(
+  initChat(
     +uuid,
     index,
     {
@@ -514,7 +515,7 @@ onUnmounted(() => {
                   <template #icon>
                     <SvgIcon icon="ri:stop-circle-line" />
                   </template>
-									{{ t('common.stopResponding') }}
+                  {{ t('common.stopResponding') }}
                 </NButton>
               </div>
             </div>
