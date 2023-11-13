@@ -218,8 +218,7 @@ async function onRegenerate(index: number) {
   let options: Chat.ConversationRequest = {}
 
   if (requestOptions.options)
-    updateChat
-  options = { ...requestOptions.options }
+    options = { ...requestOptions.options }
 
   loading.value = true
 
