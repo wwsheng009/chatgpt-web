@@ -115,16 +115,13 @@ async function onConversation() {
           const xhr = event.target
           const { responseText } = xhr
 
-          let chunk = responseText
+          let data = parseSSEMessage(responseText).data
+          let chunk = data;
           if (firstline) {
-            const lastIndex = responseText.lastIndexOf('\n')
-            if (lastIndex !== -1) {
-              const chunk1 = responseText.substring(0, lastIndex)
-              const data = JSON.parse(chunk1)
-              conversationId = data.conversationId
-              firstline = false
-              chunk = responseText.substring(lastIndex + 1)
-            }
+            let data1 = JSON.parse(data)
+            conversationId = data1.conversationId
+            firstline = false
+            chunk = ""
           }
           try {
             const data = { text: chunk, conversationId, id: '' }
@@ -204,7 +201,63 @@ async function onConversation() {
     loading.value = false
   }
 }
+interface SSEParsedData {
+  events: string[];
+  data: string;
+}
 
+function parseSSEMessage(sseMessage: string): SSEParsedData {
+  const parsedData: SSEParsedData = {
+    events: [],
+    data: ""
+  };
+  let data: string[] = [];
+  let currentType: 'event' | 'data' | null = null;
+
+  let dataTypeCount = 0;
+  let currentContent = '';
+  let i = 0;
+
+  while (i < sseMessage.length) {
+    if (sseMessage.startsWith('event:', i)) {
+      if (currentType === 'data') {
+        data.push(currentContent);
+      }
+      currentType = 'event';
+      currentContent = '';
+      i += 'event:'.length;
+      dataTypeCount = 0;
+    } else if (sseMessage.startsWith('data:', i)) {
+      if (currentType === 'event') {
+        parsedData.events.push(currentContent);
+      }else if (currentType === 'data') {
+        data.push(currentContent);
+      }
+      currentType = 'data';
+      dataTypeCount += 1;
+      currentContent = '';
+      i += 'data:'.length;
+    } else if (sseMessage[i] == '\n') {
+      i++;
+    } else {
+      currentContent += sseMessage[i];
+      i++;
+    }
+    if (dataTypeCount == 2) {
+      data.push('\n');
+      dataTypeCount = 1;
+    }
+  }
+
+  // Add any remaining content
+  if (currentType === 'event') {
+    parsedData.events.push(currentContent);
+  } else if (currentType === 'data') {
+    data.push(currentContent);
+  }
+  parsedData.data = data.join("")
+  return parsedData;
+}
 async function onRegenerate(index: number) {
   if (loading.value)
     return
@@ -247,19 +300,15 @@ async function onRegenerate(index: number) {
         onDownloadProgress: ({ event }) => {
           const xhr = event.target
           const { responseText } = xhr
-          let chunk = responseText
+          let data = parseSSEMessage(responseText).data
+          let chunk = data;
           if (firstline) {
-            const lastIndex = responseText.lastIndexOf('\n')
-            if (lastIndex !== -1) {
-              const chunk1 = responseText.substring(0, lastIndex)
-              const data = JSON.parse(chunk1)
-              conversationId = data.conversationId
-              firstline = false
-              chunk = responseText.substring(lastIndex + 1)
-            }
+            let data1 = JSON.parse(data)
+            conversationId = data1.conversationId
+            firstline = false
+            chunk = ""
           }
           try {
-            // const data = JSON.parse(chunk)
             const data = { text: chunk, conversationId, id: '' }
 
             updateChat(
@@ -477,19 +526,11 @@ onUnmounted(() => {
 
 <template>
   <div class="flex flex-col w-full h-full">
-    <HeaderComponent
-      v-if="isMobile"
-      :using-context="usingContext"
-      @export="handleExport"
-      @handle-clear="handleClear"
-    />
+    <HeaderComponent v-if="isMobile" :using-context="usingContext" @export="handleExport" @handle-clear="handleClear" />
     <main class="flex-1 overflow-hidden">
       <div id="scrollRef" ref="scrollRef" class="h-full overflow-hidden overflow-y-auto">
-        <div
-          id="image-wrapper"
-          class="w-full max-w-screen-xl m-auto dark:bg-[#101014]"
-          :class="[isMobile ? 'p-2' : 'p-4']"
-        >
+        <div id="image-wrapper" class="w-full max-w-screen-xl m-auto dark:bg-[#101014]"
+          :class="[isMobile ? 'p-2' : 'p-4']">
           <template v-if="!dataSources.length">
             <div class="flex items-center justify-center mt-4 text-center text-neutral-300">
               <SvgIcon icon="ri:bubble-chart-fill" class="mr-2 text-3xl" />
@@ -498,17 +539,9 @@ onUnmounted(() => {
           </template>
           <template v-else>
             <div>
-              <Message
-                v-for="(item, index) of dataSources"
-                :key="index"
-                :date-time="item.dateTime"
-                :text="item.text"
-                :inversion="item.inversion"
-                :error="item.error"
-                :loading="item.loading"
-                @regenerate="onRegenerate(index)"
-                @delete="handleDelete(index)"
-              />
+              <Message v-for="(item, index) of dataSources" :key="index" :date-time="item.dateTime" :text="item.text"
+                :inversion="item.inversion" :error="item.error" :loading="item.loading" @regenerate="onRegenerate(index)"
+                @delete="handleDelete(index)" />
               <div class="sticky bottom-0 left-0 flex justify-center">
                 <NButton v-if="loading" type="warning" @click="handleStop">
                   <template #icon>
@@ -542,17 +575,9 @@ onUnmounted(() => {
           </HoverButton>
           <NAutoComplete v-model:value="prompt" :options="searchOptions" :render-label="renderOption">
             <template #default="{ handleInput, handleBlur, handleFocus }">
-              <NInput
-                ref="inputRef"
-                v-model:value="prompt"
-                type="textarea"
-                :placeholder="placeholder"
-                :autosize="{ minRows: 1, maxRows: isMobile ? 4 : 8 }"
-                @input="handleInput"
-                @focus="handleFocus"
-                @blur="handleBlur"
-                @keypress="handleEnter"
-              />
+              <NInput ref="inputRef" v-model:value="prompt" type="textarea" :placeholder="placeholder"
+                :autosize="{ minRows: 1, maxRows: isMobile ? 4 : 8 }" @input="handleInput" @focus="handleFocus"
+                @blur="handleBlur" @keypress="handleEnter" />
             </template>
           </NAutoComplete>
           <NButton type="primary" :disabled="buttonDisabled" @click="handleSubmit">
