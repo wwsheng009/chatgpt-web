@@ -114,37 +114,52 @@ async function onConversation() {
         onDownloadProgress: ({ event }) => {
           const xhr = event.target
           const { responseText } = xhr
-
-          let data = parseSSEMessage(responseText).data
-          let chunk = data;
+          let chunk = parseSSEMessage(responseText).data;
           if (firstline) {
-            let data1 = JSON.parse(data)
+            let data1 = JSON.parse(chunk)
             conversationId = data1.conversationId
             firstline = false
             chunk = ""
-          }
-          try {
-            const data = { text: chunk, conversationId, id: '' }
-
-            updateChat(
+            const data2 = { text: chunk, conversationId, id: '' }
+            initChat(
               +uuid,
               dataSources.value.length - 1,
               {
                 dateTime: new Date().toLocaleString(),
-                // text: lastText + (data.text ?? ''),
-                text: data.text ?? '',
+                text: data2.text ?? '',
                 inversion: false,
                 error: false,
                 loading: true,
-                conversationOptions: { conversationId: data.conversationId, parentMessageId: data.id },
+                conversationOptions: { conversationId: data2.conversationId, parentMessageId: data2.id },
                 requestOptions: { prompt: message, options: { ...options } },
               },
             )
-            scrollToBottomIfAtBottom()
+
+          } else {
+            try {
+              const data = { text: chunk, conversationId, id: '' }
+
+              updateChat(
+                +uuid,
+                dataSources.value.length - 1,
+                {
+                  dateTime: new Date().toLocaleString(),
+                  // text: lastText + (data.text ?? ''),
+                  text: data.text ?? '',
+                  inversion: false,
+                  error: false,
+                  loading: true,
+                  conversationOptions: { conversationId: data.conversationId, parentMessageId: data.id },
+                  requestOptions: { prompt: message, options: { ...options } },
+                },
+              )
+              scrollToBottomIfAtBottom()
+            }
+            catch (error) {
+              //
+            }
           }
-          catch (error) {
-            //
-          }
+
         },
       })
       updateChatSome(+uuid, dataSources.value.length - 1, { loading: false })
@@ -201,61 +216,51 @@ async function onConversation() {
     loading.value = false
   }
 }
+
 interface SSEParsedData {
   events: string[];
   data: string;
 }
-
+/**
+ * 转换sse消息，获取sse消息体中的data 数据，可能的格式有：
+ * event:message
+ * data:
+ * 
+ * event:message
+ * data::
+ * data:
+ * data:
+ * 
+ * @param sseMessage sse消息，有可能会有多行
+ */
 function parseSSEMessage(sseMessage: string): SSEParsedData {
   const parsedData: SSEParsedData = {
     events: [],
     data: ""
   };
-  let data: string[] = [];
+
+  let lines = sseMessage.split('\n');
   let currentType: 'event' | 'data' | null = null;
+  let previousType: 'event' | 'data' | null = null;
 
-  let dataTypeCount = 0;
-  let currentContent = '';
-  let i = 0;
-
-  while (i < sseMessage.length) {
-    if (sseMessage.startsWith('event:', i)) {
-      if (currentType === 'data') {
-        data.push(currentContent);
-      }
+  for (let line of lines) {
+    if (line.startsWith('event:')) {
       currentType = 'event';
-      currentContent = '';
-      i += 'event:'.length;
-      dataTypeCount = 0;
-    } else if (sseMessage.startsWith('data:', i)) {
-      if (currentType === 'event') {
-        parsedData.events.push(currentContent);
-      }else if (currentType === 'data') {
-        data.push(currentContent);
+      parsedData.events.push(line.substring('event:'.length));
+    } else if (line.startsWith('data:')) {
+      if (previousType === 'data') {
+        parsedData.data += '\n'; // 加入换行符，只有在连续的data行之间
       }
       currentType = 'data';
-      dataTypeCount += 1;
-      currentContent = '';
-      i += 'data:'.length;
-    } else if (sseMessage[i] == '\n') {
-      i++;
-    } else {
-      currentContent += sseMessage[i];
-      i++;
+      let data = line.substring('data:'.length);
+      if (data === "[DONE]") {
+        break
+      }
+      parsedData.data += data
     }
-    if (dataTypeCount == 2) {
-      data.push('\n');
-      dataTypeCount = 1;
-    }
+    previousType = currentType; // 更新前一个类型
   }
 
-  // Add any remaining content
-  if (currentType === 'event') {
-    parsedData.events.push(currentContent);
-  } else if (currentType === 'data') {
-    data.push(currentContent);
-  }
-  parsedData.data = data.join("")
   return parsedData;
 }
 async function onRegenerate(index: number) {
